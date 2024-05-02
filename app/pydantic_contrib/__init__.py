@@ -9,3 +9,15 @@ from pydantic_contrib._models import AssignmentBase, AssignmentFull
 from pydantic_contrib._models import MaterialContentType, MaterialFull
 
 from pydantic_contrib._models import UserBase, UserFull
+
+from pydantic_contrib._models import (
+    TestBase,
+    TestFull,
+    QuestionBase,
+    QuestionFull,
+    AnswerBase,
+    AnswerFull,
+    CreateTestTask,
+    GetTestTask,
+    QuestionWithoutAnswer
+)

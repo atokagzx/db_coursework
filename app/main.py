@@ -14,6 +14,7 @@ from routes._modules_routes import router as modules_router
 from routes._assignment_routes import router as assignment_router
 from routes._material_routes import router as material_router
 from routes._users_routes import router as users_router
+from routes._test_routes import router as test_router
 
 from configure import *
 
@@ -29,7 +30,8 @@ for route in [auth_router,
                 modules_router,
                 assignment_router,
                 material_router,
-                users_router
+                users_router,
+                test_router
                 ]:
     
     app.include_router(route)

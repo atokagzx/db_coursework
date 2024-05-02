@@ -68,3 +68,44 @@ class MaterialFull(BaseModel):
     content: Optional[str]
     url: str
     
+
+class TestBase(BaseModel):
+    module_id: int
+    test_description: str
+
+
+class TestFull(TestBase):
+    test_id: int
+
+
+class QuestionBase(BaseModel):
+    question_text: str
+    correct_answer: str
+
+
+class QuestionFull(QuestionBase):
+    test_id: int
+    question_id: int
+
+
+class AnswerBase(BaseModel):
+    question_id: int
+    given_answer: str
+
+
+class AnswerFull(AnswerBase):
+    answer_id: int
+    is_correct: bool
+
+
+class CreateTestTask(BaseModel):
+    test: TestBase
+    questions: List[QuestionBase]
+
+class QuestionWithoutAnswer(BaseModel):
+    question_text: str
+    question_id: int
+
+class GetTestTask(BaseModel):
+    test: TestFull
+    questions: List[QuestionWithoutAnswer]

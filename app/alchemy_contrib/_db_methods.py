@@ -75,8 +75,11 @@ class DBFacade(metaclass=Singleton):
             self.drop_tables()
         BaseDB.metadata.create_all(bind=self._engine)
         # add default roles
-        if recreate:
-            self.add_default_roles()
+        # check if roles exist
+        with self.SMaker() as session:
+            roles = session.query(am.Role).all()
+            if len(roles) == 0:
+                self.add_default_roles()
 
 
     def drop_tables(self):

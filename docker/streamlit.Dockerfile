@@ -24,4 +24,6 @@ RUN apt update && apt install -y    apt-utils \
 RUN pip3 install streamlit==1.33 \
                 streamlit-authenticator==0.1.4 \
                 streamlit-cookies-controller==0.0.4
+RUN pip3 install requests requests_toolbelt
+
 WORKDIR /gui

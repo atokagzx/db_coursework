@@ -2,7 +2,7 @@ import alchemy_contrib as am  # alchemy models
 from sqlalchemy import exc as sqlalchemy_exc
 import psycopg2
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Form
 import pydantic_contrib as pm  # pydantic models
 
 from configure import *
@@ -65,9 +65,32 @@ def get_courses_created_by_me(user: dict = UserDependency, db_session = Depends(
                           created_at=course.created_at) for course in courses]
 
 
+@router.get("/courses/my_courses", response_model=typing.List[pm.CourseFull], tags=["courses"])
+def get_my_courses(user: dict = UserDependency, db_session = Depends(DBFacade().db_session)):
+    '''
+    Get all courses the user is registered for.
+    '''
+    # check if user has student role
+    role = db_session.query(am.Role).filter(am.Role.role_name == "student").first()
+    user_role = db_session.query(am.UserRole).filter(am.UserRole.user_id == user["user_id"],
+                                                        am.UserRole.role_id == role.role_id).first()
+    if user_role is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User is not a student")
+    registers = db_session.query(am.CourseRegistration).filter(am.CourseRegistration.user_id == user["user_id"]).all()
+    courses = []
+    for register in registers:
+        course = db_session.query(am.Course).filter(am.Course.course_id == register.course_id).first()
+        courses.append(pm.CourseFull(course_id=course.course_id,
+                                    course_name=course.course_name,
+                                    description=course.description,
+                                    created_by=course.created_by,
+                                    created_at=course.created_at))
+    return courses
+
 @router.post("/courses/{course_id}/students", response_model=typing.List[pm.UserBase], tags=["courses"])
-def add_user_to_course(course_id: int,
-                      user_id: int,
+def add_user_to_course(
+                    course_id: int,
+                         user_id: int = Form(...),
                     user: dict = UserDependency,
                       db_session = Depends(DBFacade().db_session)):
     '''

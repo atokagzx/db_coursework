@@ -54,3 +54,29 @@ def get_assignments(module_id: int,
                               assignment_description=assignment.assignment_description,
                               module_id=assignment.module_id,
                                 due_date=assignment.due_date) for assignment in assignments]
+
+
+@router.delete("/modules/{module_id}/assignments/{assignment_id}", response_model=pm.DefaultMessage, tags=["assignments"])
+def delete_assignment(module_id: int,
+                      assignment_id: int,
+                      user: dict = UserDependency,
+                      db_session = Depends(DBFacade().db_session)):
+    '''
+    Delete an assignment.
+    '''
+    # check if user is an admin
+    if "admin" not in user["roles"] and "instructor" not in user["roles"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only admins and instructors can delete assignments")
+    # check if assignment exists
+    assignment = db_session.query(am.Assignment).filter(am.Assignment.assignment_id == assignment_id).first()
+    if not assignment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assignment not found")
+    if assignment.module.course.created_by != user["user_id"] and "admin" not in user["roles"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only admins and course creators can delete assignments")
+    db_session.delete(assignment)
+    try:
+        db_session.commit()
+    except sqlalchemy_exc.SQLAlchemyError as e:
+        db_session.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    return pm.DefaultMessage(message="Assignment deleted successfully")
