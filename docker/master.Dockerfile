@@ -30,6 +30,6 @@ RUN pip3 install fastapi==0.105.0 \
                 PyJWT==2.8.0 \
                 python-multipart==0.0.6 \
                 python-jose==3.3.0
-RUN pip3 install pymongo==4.7.1
+RUN pip3 install pymongo==4.7.1 redis
 
 WORKDIR /app
