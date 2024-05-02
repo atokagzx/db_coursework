@@ -1,0 +1,153 @@
+version: "3.9"
+
+networks:
+  postgres_net:
+    driver: bridge
+
+volumes:
+  dc_cache:
+    driver: local
+  dc_data:
+    driver: local
+  redis_data:
+    driver: local
+  mongo_data:
+    driver: local
+
+secrets:
+  db_password:
+    file: db_password.secret.txt
+  jwt_secret_key:
+    file: jwt_secret_key.secret.txt
+
+services:
+  postgres:
+    image: postgres:16.1
+    container_name: studyboard_postgres
+    networks:
+      - postgres_net 
+    expose:
+      - 5432
+    ports:
+      - "5430:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD_FILE=/run/secrets/db_password
+      - POSTGRES_DB=${POSTGRES_DB:-datasets}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    secrets:
+      - db_password
+    volumes:
+      - dc_data:/var/lib/postgresql/data
+    restart: always
+    
+  pgadmin:
+    image: dpage/pgadmin4:8.0
+    container_name: studyboard_pgadmin
+    networks:
+      - postgres_net
+    ports:
+      - "5050:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL:-admin@admin.org}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD:-admin}
+    volumes:
+      - dc_cache:/var/lib/pgadmin
+      - ./servers.json:/pgadmin4/servers.json
+    restart: always
+
+  redis:
+    image: redis:6.0
+    container_name: studyboard_redis
+    networks:
+      - postgres_net
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
+
+  mongo:
+    image: mongo:4.4
+    container_name: studyboard_mongo
+    networks:
+      - postgres_net
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME:-mongo}
+      - MONGO_INITDB_ROOT_PASSWORD_FILE=/run/secrets/db_password
+    secrets:
+      - db_password
+    restart: always
+
+  backend:
+    build:
+      context: .
+      dockerfile: ./master.Dockerfile
+    container_name: studyboard_backend
+    volumes:
+      - ../app/:/app
+      - ./logging.ini:/ws/logging.ini
+    ports:
+      - "5005:5005"
+    expose:
+      - 5005
+    networks:
+      - postgres_net
+    depends_on:
+      - postgres
+      - redis
+      - mongo
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD_FILE=/run/secrets/db_password
+      - POSTGRES_DB=${POSTGRES_DB:-datasets}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME:-mongo}
+      - MONGO_INITDB_ROOT_PASSWORD_FILE=/run/secrets/db_password
+      - MONGO_HOST=mongo
+      - MONGO_PORT=27017
+      - MONGO_DB=${MONGO_DB:-datasets}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SECRET_KEY_FILE=/run/secrets/jwt_secret_key
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=1440
+    secrets:
+      - db_password
+      - jwt_secret_key
+    entrypoint: 
+      - /bin/bash
+      - -c
+    command: 
+        - "uvicorn main:app --host 0.0.0.0 --port 5005 --reload --log-config /ws/logging.ini"
+    restart: always
+
+  streamlit:
+    build:
+      context: .
+      dockerfile: ./streamlit.Dockerfile
+    container_name: studyboard_streamlit
+    volumes:
+      - ../gui/:/gui
+    ports:
+      - "8501:8501"
+    expose:
+      - 8501
+    networks:
+      - postgres_net
+    depends_on:
+      - backend
+    environment:
+      - BACKEND_HOST=backend
+      - BACKEND_PORT=5005
+    restart: always
+    entrypoint: 
+      - /bin/bash
+      - -c
+    command: 
+      - "streamlit run /gui/main.py --server.port 8501"

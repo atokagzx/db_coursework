@@ -1,0 +1,8 @@
+__pycache__
+.vscode
+*.pyc
+*.pkl
+*.yaml
+*.secret.txt
+.idea
+.DS_Store
